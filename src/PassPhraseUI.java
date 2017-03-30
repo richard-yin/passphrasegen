@@ -10,6 +10,10 @@ import java.util.stream.Collectors;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JOptionPane;
+import javax.swing.JPasswordField;
+import javax.swing.UIManager;
+import javax.swing.event.AncestorEvent;
+import javax.swing.event.AncestorListener;
 
 @SuppressWarnings("serial")
 public class PassPhraseUI extends JFrame {
@@ -20,12 +24,22 @@ public class PassPhraseUI extends JFrame {
 	private JButton enterPassButton = new JButton("Enter password");
 	
 	private Random randGen = new Random();
+	private JPasswordField pwdField = new JPasswordField();
+	private AncestorListener requestFocusListener = new AncestorListener() {
+		@Override
+		public void ancestorAdded(AncestorEvent event) {
+			event.getComponent().requestFocusInWindow();
+		}
+
+		@Override public void ancestorMoved(AncestorEvent event) {}
+		@Override public void ancestorRemoved(AncestorEvent event) {}
+		
+	};
 	
 	private ActionListener genPassAction = event -> {
 		StringBuilder pwBuilder = new StringBuilder("");
 		for (int i = 0; i < 3; i++) {
-			// TODO read nextInt javadoc
-			String word = words.get(randGen.nextInt(words.size() - 1));
+			String word = words.get(randGen.nextInt(words.size()));
 			pwBuilder.append(word);
 			if (i != 2) {
 				pwBuilder.append(" ");
@@ -35,31 +49,42 @@ public class PassPhraseUI extends JFrame {
 		
 		boolean passwordRemembered = false;
 		while (!passwordRemembered) {
-			String input = JOptionPane.showInputDialog(this, "Your password is: " + password + ".\n"
-					+ "Please enter your password:");
-			if (input == null) {
+			pwdField.setText("");
+			int action = JOptionPane.showConfirmDialog(this,
+					new Object[]{"Your password is: " + password + "\n"
+					+ "Please enter your password:", pwdField}, "Create Password",
+					JOptionPane.OK_CANCEL_OPTION);
+			if (action == 0) {
+				if (password.equals(String.valueOf(pwdField.getPassword()))) {
+					pwdField.setText("");
+					action = JOptionPane.showConfirmDialog(this,
+							new Object[]{"Please re-enter your password:", pwdField},
+							"Re-enter Password", JOptionPane.OK_CANCEL_OPTION);
+					if (action != 0) {
+						password = null;
+						enterPassButton.setEnabled(false);
+						return;
+					} else if (password.equals(String.valueOf(pwdField.getPassword()))) {
+						passwordRemembered = true;
+					}
+				}
+			} else {
 				password = null;
 				enterPassButton.setEnabled(false);
 				return;
-			} else if (password.equals(input)) {
-				input = JOptionPane.showInputDialog(this, "Please re-enter your password:");
-				if (input == null) {
-					password = null;
-					enterPassButton.setEnabled(false);
-					return;
-				} else if (password.equals(input)) {
-					passwordRemembered = true;
-				}
 			}
 		}
 		enterPassButton.setEnabled(true);
 	};
 	
 	private ActionListener enterPassAction = event -> {
-		String input = JOptionPane.showInputDialog("Please enter your password: ");
-		if (input == null) {
+		pwdField.setText("");
+		int action = JOptionPane.showConfirmDialog(this,
+				new Object[]{"Please enter your password:", pwdField},
+				"Enter Password", JOptionPane.OK_CANCEL_OPTION);
+		if (action != 0) {
 			return;
-		} else if (password.equals(input)) {
+		} else if (password.equals(String.valueOf(pwdField.getPassword()))) {
 			JOptionPane.showMessageDialog(this, "Password successfully entered.",
 					"Success", JOptionPane.INFORMATION_MESSAGE);
 		} else {
@@ -77,6 +102,8 @@ public class PassPhraseUI extends JFrame {
 
 		words = Files.lines(Paths.get("wordlist.txt")).collect(Collectors.toList());
 		
+		pwdField.addAncestorListener(requestFocusListener);
+		
 		genPassButton.setBounds(10, 10, 200, 40);
 		genPassButton.addActionListener(genPassAction);
 		add(genPassButton);
@@ -88,6 +115,7 @@ public class PassPhraseUI extends JFrame {
 	}
 
 	public static void main(String[] args) throws Exception {
+		UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		new PassPhraseUI().setVisible(true);
 	}
 

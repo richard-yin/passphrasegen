@@ -46,6 +46,7 @@ public class PassPhraseUI extends JFrame {
 			}
 		}
 		password = pwBuilder.toString();
+		printCSVLog("create, start");
 		
 		boolean passwordRemembered = false;
 		while (!passwordRemembered) {
@@ -56,19 +57,27 @@ public class PassPhraseUI extends JFrame {
 					JOptionPane.OK_CANCEL_OPTION);
 			if (action == 0) {
 				if (password.equals(String.valueOf(pwdField.getPassword()))) {
+					printCSVLog("create, re-enter");
 					pwdField.setText("");
 					action = JOptionPane.showConfirmDialog(this,
 							new Object[]{"Please re-enter your password:", pwdField},
 							"Re-enter Password", JOptionPane.OK_CANCEL_OPTION);
 					if (action != 0) {
+						printCSVLog("create, cancel");
 						password = null;
 						enterPassButton.setEnabled(false);
 						return;
 					} else if (password.equals(String.valueOf(pwdField.getPassword()))) {
+						printCSVLog("create, success");
 						passwordRemembered = true;
+					} else {
+						printCSVLog("create, re-enter_fail");
 					}
+				} else {
+					printCSVLog("create, enter_fail");
 				}
 			} else {
+				printCSVLog("create, cancel");
 				password = null;
 				enterPassButton.setEnabled(false);
 				return;
@@ -83,11 +92,14 @@ public class PassPhraseUI extends JFrame {
 				new Object[]{"Please enter your password:", pwdField},
 				"Enter Password", JOptionPane.OK_CANCEL_OPTION);
 		if (action != 0) {
+			printCSVLog("enter, cancel");
 			return;
 		} else if (password.equals(String.valueOf(pwdField.getPassword()))) {
+			printCSVLog("enter, success");
 			JOptionPane.showMessageDialog(this, "Password successfully entered.",
 					"Success", JOptionPane.INFORMATION_MESSAGE);
 		} else {
+			printCSVLog("enter, fail");
 			JOptionPane.showMessageDialog(this, "Password incorrect.",
 					"Error", JOptionPane.ERROR_MESSAGE);
 		}
@@ -113,8 +125,19 @@ public class PassPhraseUI extends JFrame {
 		enterPassButton.setEnabled(false);
 		add(enterPassButton);
 	}
+	
+	private void printCSVLog(String text) {
+		System.out.print(System.currentTimeMillis() + ", ");
+		if (password == null) {
+			System.out.println("null, " + text);
+		}
+		else {
+			System.out.println(Integer.toHexString(password.hashCode()) + ", " + text);
+		}
+	}
 
 	public static void main(String[] args) throws Exception {
+		System.out.println("timestamp, passwordhash, mode, event");
 		UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		new PassPhraseUI().setVisible(true);
 	}

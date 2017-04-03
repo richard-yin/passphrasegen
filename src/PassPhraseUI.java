@@ -1,8 +1,10 @@
 import java.awt.HeadlessException;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -46,17 +48,23 @@ public class PassPhraseUI extends JFrame {
 	};
 
 	private ActionListener genPassAction = event -> {
+		passwords = new String[3];
 		for (int passType = 0; passType < 3; passType++) {
-			StringBuilder pwBuilder = new StringBuilder("");
-			for (int i = 0; i < 3; i++) {
-				String word = words.get(randGen.nextInt(words.size()));
-				pwBuilder.append(word);
-				if (i != 2) {
-					pwBuilder.append(" ");
-				}
-			}
-			passwords[passType] = pwBuilder.toString();
 			printCSVLog("create, start", passType);
+			String[] choices = new String[4];
+			for (int i = 0; i < 4; i++) {
+				choices[i] = generatePassword();
+			}
+			String password = (String) JOptionPane.showInputDialog(this,
+					"<html>Please select a " + PASS_TYPE_STRINGS[passType] + " password.",
+					"Create Password", JOptionPane.QUESTION_MESSAGE,
+					null, choices, choices[0]);
+			if (password == null) {
+				printCSVLog("enter, cancel", passType);
+				return;
+			} else {
+				passwords[passType] = password;
+			}
 
 			if (!verifyPassword(passType)) {
 				return;
@@ -101,11 +109,11 @@ public class PassPhraseUI extends JFrame {
 		super("Pass Phrase");
 
 		setBounds(320, 240, 240, 180);
-		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		setLayout(null);
 
-		words = Files.lines(Paths.get("wordlist.txt")).collect(
-				Collectors.toList());
+		words = Files.lines(Paths.get("wordlist.txt")).map(String::toLowerCase).
+				collect(Collectors.toList());
 
 		pwdField.addAncestorListener(requestFocusListener);
 
@@ -119,59 +127,64 @@ public class PassPhraseUI extends JFrame {
 		add(enterPassButton);
 	}
 
+	private String generatePassword() {
+		StringBuilder pwBuilder = new StringBuilder("");
+		for (int i = 0; i < 3; i++) {
+			String word = words.get(randGen.nextInt(words.size()));
+			pwBuilder.append(word);
+			if (i != 2) {
+				pwBuilder.append(" ");
+			}
+		}
+		return pwBuilder.toString();
+	}
+
 	private void printCSVLog(String text, int passType) {
-		System.out.println(System.currentTimeMillis() + ", "
-				+ Integer.toHexString(Arrays.deepHashCode(passwords)) + ", "
-				+ passType + ", " + text);
+		String line = System.currentTimeMillis() + ", "
+				+ Integer.toHexString(passwords.hashCode()) + ", "
+				+ passType + ", " + text + "\n";
+		System.out.print(line);
+		try {
+			Files.write(Paths.get("out.txt"), line.getBytes(StandardCharsets.UTF_8),
+					StandardOpenOption.APPEND);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	private boolean verifyPassword(int passType) {
 		boolean passwordRemembered = false;
+		printCSVLog("create, re-enter", passType);
 		while (!passwordRemembered) {
 			pwdField.setText("");
 			int action = JOptionPane.showConfirmDialog(this, new Object[] {
 					"<html>Your " + PASS_TYPE_STRINGS[passType]
-							+ " password is: " + passwords[passType] + "\n"
-							+ "Please enter your password:", pwdField },
-					"Create Password", JOptionPane.OK_CANCEL_OPTION);
-			if (action == 0) {
-				if (passwords[passType].equals(String.valueOf(pwdField
-						.getPassword()))) {
-					printCSVLog("create, re-enter", passType);
-					pwdField.setText("");
-					action = JOptionPane.showConfirmDialog(this, new Object[] {
-							"<html>Please re-enter your "
-									+ PASS_TYPE_STRINGS[passType]
-									+ " password:", pwdField },
-							"Re-enter Password", JOptionPane.OK_CANCEL_OPTION);
-					if (action != 0) {
-						printCSVLog("create, cancel", passType);
-						passwords = new String[3];
-						enterPassButton.setEnabled(false);
-						return false;
-					} else if (passwords[passType].equals(String
-							.valueOf(pwdField.getPassword()))) {
-						printCSVLog("create, success", passType);
-						passwordRemembered = true;
-					} else {
-						printCSVLog("create, re-enter_fail", passType);
-					}
-				} else {
-					printCSVLog("create, enter_fail", passType);
-				}
-			} else {
+									+ " password is: " + passwords[passType] +
+									"\n<html>Please re-enter your " + PASS_TYPE_STRINGS[passType] +
+									" password.", pwdField
+								}, "Re-enter Password", JOptionPane.OK_CANCEL_OPTION);
+			if (action != 0) {
 				printCSVLog("create, cancel", passType);
 				passwords = new String[3];
 				enterPassButton.setEnabled(false);
 				return false;
+			} else if (passwords[passType].equals(String
+					.valueOf(pwdField.getPassword()))) {
+				printCSVLog("create, success", passType);
+				passwordRemembered = true;
+			} else {
+				printCSVLog("create, verify_fail", passType);
 			}
+
 		}
 		enterPassButton.setEnabled(true);
 		return true;
 	}
 
 	public static void main(String[] args) throws Exception {
-		System.out.println("timestamp, passarrayhash, passtype, mode, event");
+		Files.write(Paths.get("out.txt"),
+				"timestamp, passarrayhash, passtype, mode, event\n"
+				.getBytes(StandardCharsets.UTF_8));
 		UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		new PassPhraseUI().setVisible(true);
 	}

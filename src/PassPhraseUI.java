@@ -1,8 +1,10 @@
 import java.awt.HeadlessException;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -46,6 +48,7 @@ public class PassPhraseUI extends JFrame {
 	};
 
 	private ActionListener genPassAction = event -> {
+		passwords = new String[3];
 		for (int passType = 0; passType < 3; passType++) {
 			StringBuilder pwBuilder = new StringBuilder("");
 			for (int i = 0; i < 3; i++) {
@@ -69,8 +72,8 @@ public class PassPhraseUI extends JFrame {
 		Collections.shuffle(passTypes);
 		int successes = 0;
 		for (Integer passType : passTypes) {
+			printCSVLog("enter, start", passType);
 			for (int tries = 0; tries < 3; tries++) {
-				printCSVLog("enter, start", passType);
 				pwdField.setText("");
 				int action = JOptionPane.showConfirmDialog(this, new Object[] {
 						"<html>Please enter your "
@@ -101,11 +104,11 @@ public class PassPhraseUI extends JFrame {
 		super("Pass Phrase");
 
 		setBounds(320, 240, 240, 180);
-		setDefaultCloseOperation(DISPOSE_ON_CLOSE);
+		setDefaultCloseOperation(EXIT_ON_CLOSE);
 		setLayout(null);
 
-		words = Files.lines(Paths.get("wordlist.txt")).collect(
-				Collectors.toList());
+		words = Files.lines(Paths.get("wordlist.txt")).map(String::toLowerCase).
+				collect(Collectors.toList());
 
 		pwdField.addAncestorListener(requestFocusListener);
 
@@ -120,9 +123,17 @@ public class PassPhraseUI extends JFrame {
 	}
 
 	private void printCSVLog(String text, int passType) {
-		System.out.println(System.currentTimeMillis() + ", "
-				+ Integer.toHexString(Arrays.deepHashCode(passwords)) + ", "
-				+ passType + ", " + text);
+		String line = System.currentTimeMillis() + ", "
+				+ Integer.toHexString(passwords.hashCode()) + ", "
+				+ passType + ", " + text + "\n";
+		try {
+			Files.write(Paths.get("out.csv"), line.getBytes(StandardCharsets.UTF_8),
+					StandardOpenOption.APPEND);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		System.out.print(line);
 	}
 
 	private boolean verifyPassword(int passType) {
@@ -132,7 +143,8 @@ public class PassPhraseUI extends JFrame {
 			int action = JOptionPane.showConfirmDialog(this, new Object[] {
 					"<html>Your " + PASS_TYPE_STRINGS[passType]
 							+ " password is: " + passwords[passType] + "\n"
-							+ "Please enter your password:", pwdField },
+							+ "<html>Please enter your " + PASS_TYPE_STRINGS[passType]
+							+ " password:", pwdField },
 					"Create Password", JOptionPane.OK_CANCEL_OPTION);
 			if (action == 0) {
 				if (passwords[passType].equals(String.valueOf(pwdField
@@ -171,7 +183,9 @@ public class PassPhraseUI extends JFrame {
 	}
 
 	public static void main(String[] args) throws Exception {
-		System.out.println("timestamp, passarrayhash, passtype, mode, event");
+		Files.write(Paths.get("out.csv"),
+				"timestamp, passarrayhash, passtype, mode, event\n"
+				.getBytes(StandardCharsets.UTF_8));
 		UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
 		new PassPhraseUI().setVisible(true);
 	}
